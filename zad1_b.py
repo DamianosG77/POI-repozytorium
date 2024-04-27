@@ -12,5 +12,4 @@ points = generate_points_flat_vertical(width, height, num_points)
 print(points)
 
 np.savetxt("Podpunkt_B.xyz", points, fmt='%.6f', delimiter=' ', header='x y z', comments='')
-
 print("Wyniki zostały zapisane do pliku Podpunkt_B.xyz")
