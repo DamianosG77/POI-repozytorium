@@ -13,5 +13,5 @@ num_points = 2000
 points = generate_points_flat_horizontal(width, length, num_points)
 print(points)
 
-## zapis do pliku
 np.savetxt("Podpunkt_A.xyz", points, fmt='%.6f', delimiter=' ', header='x y z', comments='')
+print("Wyniki zostały zapisane do pliku Podpunkt_A.xyz")
