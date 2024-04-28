@@ -16,34 +16,41 @@ def load_points(file_path):
 
 os.environ["OMP_NUM_THREADS"] = "6"
 
-points = load_points("Podpunkt_A.xyz") #wczytanie pliku z chmurą punktów
+# Load points from three different files
+file_paths = ["Podpunkt_A.xyz", "Podpunkt_B.xyz", "Podpunkt_C.xyz"]
+cluster_labels = ["płaszczyzna pionowa", "płaszczyzna pozioma", "płaszczyzna cylindryczna"]
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Znalezienie rozłącznych chmur punktów za pomocą k-średnich (k=3)
-kmeans = KMeans(n_clusters=3, n_init=10)
-labels = kmeans.fit_predict(points)
+for file_path, label in zip(file_paths, cluster_labels):
+    print(f"Analiza dla pliku: {file_path}")
+    points = load_points(file_path)
 
-# Przypisanie punktów do odpowiednich chmur
-clusters = []
-for i in range(3):
-    cluster_points = points[labels == i]
-    clusters.append(cluster_points)
+    # K-Means clustering
+    kmeans = KMeans(n_clusters=3, n_init=10)
+    labels = kmeans.fit_predict(points)
 
-# Dopsaowanie Ransac
-for i, cluster_points in enumerate(clusters):
-    plane = pyrsc.Plane()
-    best_eq, _ = plane.fit(cluster_points, 0.01)
+    # Assign points to clusters
+    clusters = []
+    for i in range(3):
+        cluster_points = points[labels == i]
+        clusters.append(cluster_points)
 
-    normal_vector = best_eq[:3]
-    print(f"Wektor normalny dla chmury punktów {i + 1}:", normal_vector)
-    distance_from_origin = -best_eq[3]
+    # RANSAC fitting
+    for i, cluster_points in enumerate(clusters):
+        plane = pyrsc.Plane()
+        best_eq, _ = plane.fit(cluster_points, 0.01)
 
-    if abs(normal_vector[2]) < 0.1:
-        orientation = "pozioma"
-    elif abs(normal_vector[0]) < 0.01 and abs(normal_vector[1]) < 0.01:
-        orientation = "pionowa"
-    else:
-        orientation = "Nie można określić płaszczyzny"
+        normal_vector = best_eq[:3]
+        print(f"Wektor normalny dla {label} - klaster {i + 1}:", normal_vector)
+        distance_from_origin = -best_eq[3]
 
-    print(f"Płaszczyzna dla chmury punktów {i + 1} jest {orientation}.")
+        if abs(normal_vector[2]) < 0.1:
+            orientation = "pozioma"
+        elif abs(normal_vector[0]) < 0.01 and abs(normal_vector[1]) < 0.01:
+            orientation = "pionowa"
+        else:
+            orientation = "Nie można określić płaszczyzny"
+
+        print(f"Płaszczyzna dla {label} - klaster {i + 1}: {orientation}.")
+    print("\n")
