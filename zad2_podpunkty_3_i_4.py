@@ -5,7 +5,6 @@ import csv
 import pyransac3d as pyrsc
 import warnings
 
-
 def load_points(file_path):
     points = []
     with open(file_path, 'r') as file:
@@ -17,7 +16,7 @@ def load_points(file_path):
 
 os.environ["OMP_NUM_THREADS"] = "6"
 
-points = load_points("Podpunkt_B.xyz") #wczytanie pliku z chmurą punktów
+points = load_points("Podpunkt_A.xyz") #wczytanie pliku z chmurą punktów
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -42,9 +41,9 @@ for i, cluster_points in enumerate(clusters):
 
     if abs(normal_vector[2]) < 0.1:
         orientation = "pozioma"
-    elif abs(normal_vector[0]) < 0.1 and abs(normal_vector[1]) < 0.1:
+    elif abs(normal_vector[0]) < 0.01 and abs(normal_vector[1]) < 0.01:
         orientation = "pionowa"
     else:
-        orientation = "inna"
+        orientation = "Nie można określić płaszczyzny"
 
     print(f"Płaszczyzna dla chmury punktów {i + 1} jest {orientation}.")
