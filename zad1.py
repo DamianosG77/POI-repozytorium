@@ -7,9 +7,9 @@ def generate_points_flat_horizontal(width, length, num_points):
     return np.column_stack((x, y, z))
 
 
-width = 10000
-length = 5000
-num_points = 20000
+width = 500
+length = 450
+num_points = 1500
 points = generate_points_flat_horizontal(width, length, num_points)
 print(points)
 
