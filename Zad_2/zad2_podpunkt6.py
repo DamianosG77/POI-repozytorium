@@ -63,4 +63,3 @@ for file_path, label in zip(file_paths, cluster_labels):
             orientation = "Nie można określić płaszczyzny"
 
         print(f"Płaszczyzna dla {label} - klaster {i + 1}: {orientation}.")
-    print("\n")
