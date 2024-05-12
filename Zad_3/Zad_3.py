@@ -2,135 +2,203 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
-from skimage import io, color, img_as_ubyte
 from skimage.feature import graycomatrix, graycoprops
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
 
+def crop_and_save_textures(input_dir, output_dir, crop_size, distances, angles):
+    # Sprawdź czy katalog wyjściowy istnieje, jeśli nie, utwórz go
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-def crop_and_save_images(source_folders, dest_folder, crop_size=(128, 128)):
-    # Sprawdź, czy folder docelowy istnieje, jeśli nie, utwórz go
-    if not os.path.exists(dest_folder):
-        os.makedirs(dest_folder)
+    # Iteracja przez pliki w katalogu wejściowym
+    for filename in os.listdir(input_dir):
+        # Odczytaj obraz
+        img_path = os.path.join(input_dir, filename)
+        img = cv2.imread(img_path)
 
-    print("Rozpoczynanie przycinania obrazów...")
-    total_crops = 0  # Licznik przyciętych obrazów
+        # Jeśli obraz nie może zostać wczytany, pomiń go
+        if img is None:
+            print(f"Nie można wczytać obrazu: {img_path}")
+            continue
 
-    # Przetwarzaj każdy katalog źródłowy
-    for source_folder in source_folders:
-        # Znajdź wszystkie pliki .jpg w katalogu źródłowym
-        files = [f for f in os.listdir(source_folder) if f.endswith('.jpg')]
+        # Pobierz wymiary obrazu
+        height, width, _ = img.shape
 
-        # Przetwarzaj każdy plik obrazu
-        for file_name in files:
-            img_path = os.path.join(source_folder, file_name)
-            img = cv2.imread(img_path)
-            if img is None:
-                print(f"Nie udało się załadować obrazu {file_name} z {source_folder}")
-                continue
-            h, w, _ = img.shape  # Pobierz wymiary obrazu
+        # Iteracja przez obrazy i wycinanie fragmentów tekstury
+        for y in range(0, height - crop_size[1], crop_size[1]):
+            for x in range(0, width - crop_size[0], crop_size[0]):
+                # Wycięcie fragmentu tekstury
+                texture = img[y:y + crop_size[1], x:x + crop_size[0]]
 
-            # Przycinanie obrazu
-            crop_id = 0
-            for y in range(0, h - crop_size[1] + 1, crop_size[1]):
-                for x in range(0, w - crop_size[0] + 1, crop_size[0]):
-                    crop_img = img[y:y + crop_size[1], x:x + crop_size[0]]
-                    crop_img_path = os.path.join(dest_folder, f"{os.path.splitext(file_name)[0]}_{crop_id}.jpg")
-                    cv2.imwrite(crop_img_path, crop_img)
-                    crop_id += 1
-                    total_crops += 1
-            print(f"Przycięto {crop_id} obrazów z {img_path}")
-    print(f"Całkowita liczba przyciętych obrazów: {total_crops}")
+                # Utwórz katalog wyjściowy dla danej tekstury, jeśli nie istnieje
+                output_texture_dir = os.path.join(output_dir, filename.split('.')[0])
+                if not os.path.exists(output_texture_dir):
+                    os.makedirs(output_texture_dir)
 
+                # Zapisz wycięty fragment tekstury
+                cv2.imwrite(os.path.join(output_texture_dir, f"{y}_{x}.jpg"), texture)
 
-def extract_texture_features(folder_path, distances=[1, 3, 5], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]):
-    features_list = []
-    print("Ekstrakcja cech tekstur...")
+                # Oblicz cechy tekstury dla wyciętego fragmentu
+                compute_and_save_texture_features(output_texture_dir, f"{y}_{x}.jpg", distances, angles)
 
-    files = os.listdir(folder_path)
-    if not files:
-        print("Brak obrazów do przetworzenia w katalogu.")
-        return pd.DataFrame()
+    # Po przetworzeniu wszystkich tekstur, zapisz zbiór danych do pliku CSV
+    save_dataset_to_csv(output_dir)
 
-    # Przetwarzaj każdy obraz w katalogu
-    for index, file_name in enumerate(files):
-        if file_name.endswith('.jpg'):
-            print(f"Ładowanie {file_name} ({index + 1}/{len(files)})...")
-            img_path = os.path.join(folder_path, file_name)
-            img = io.imread(img_path)
-            if img is None or img.size == 0:
-                print(f"Nie udało się załadować obrazu {file_name}")
-                continue
+def compute_and_save_texture_features(input_dir, filename, distances, angles):
+    # Odczytaj obraz
+    img_path = os.path.join(input_dir, filename)
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
-            # Konwersja obrazu do skali szarości
-            if len(img.shape) == 3:
-                gray_img = color.rgb2gray(img)
+    # Sprawdź czy obraz został wczytany
+    if img is None:
+        print(f"Nie można wczytać obrazu: {img_path}")
+        return
+
+    # Zmniejsz głębię jasności do 5 bitów (64 poziomy)
+    img = (img / 64).astype(np.uint8)
+
+    # Oblicz macierz zdarzeń szarości (GLCM)
+    glcm = graycomatrix(img, distances=distances, angles=angles, symmetric=True, normed=True)
+
+    # Oblicz cechy tekstury
+    dissimilarity = graycoprops(glcm, 'dissimilarity')
+    correlation = graycoprops(glcm, 'correlation')
+    contrast = graycoprops(glcm, 'contrast')
+    energy = graycoprops(glcm, 'energy')
+    homogeneity = graycoprops(glcm, 'homogeneity')
+    asm = graycoprops(glcm, 'ASM')
+
+    # Zwróć cechy tekstury jako słownik
+    texture_features = {
+        'Filename': filename,
+        'Distance': [],
+        'Angle': [],
+        'Dissimilarity': [],
+        'Correlation': [],
+        'Contrast': [],
+        'Energy': [],
+        'Homogeneity': [],
+        'ASM': []
+    }
+
+    for d in range(len(distances)):
+        for a in range(len(angles)):
+            texture_features['Distance'].append(distances[d])
+            texture_features['Angle'].append(angles[a])
+            texture_features['Dissimilarity'].append(dissimilarity[d, a])
+            texture_features['Correlation'].append(correlation[d, a])
+            texture_features['Contrast'].append(contrast[d, a])
+            texture_features['Energy'].append(energy[d, a])
+            texture_features['Homogeneity'].append(homogeneity[d, a])
+            texture_features['ASM'].append(asm[d, a])
+
+    # Zapisz cechy do pliku
+    output_file = os.path.join(input_dir, f"{filename.split('.')[0]}_features.txt")
+    with open(output_file, 'w') as f:
+        for key, value in texture_features.items():
+            if isinstance(value, list):
+                f.write(f"{key}: {', '.join(map(str, value))}\n")
             else:
-                gray_img = img  # Zakładamy, że jest już w skali szarości
+                f.write(f"{key}: {value}\n")
 
-            # Przeskalowanie wartości pikseli
-            gray_img = img_as_ubyte(gray_img)
-            gray_img //= 4  # Redukcja do 5 bitów na piksel (64 poziomy)
+    return texture_features
 
-            # Obliczanie GLCM i cech tekstur
-            glcm = graycomatrix(gray_img, distances, angles, 64, symmetric=True, normed=True)
-            features = {'file': file_name,
-                        'category': file_name.split('_')[0]}  # Użyj części nazwy pliku jako kategorii
+def save_dataset_to_csv(output_dir):
+    # Utwórz listę cech wszystkich tekstur
+    all_texture_features = []
 
-            for prop in ['dissimilarity', 'correlation', 'contrast', 'energy', 'homogeneity', 'ASM']:
-                for dist in distances:
-                    for ang in angles:
-                        features[f'{prop}_d{dist}_a{int(np.degrees(ang))}'] = graycoprops(glcm, prop)[
-                            distances.index(dist), angles.index(ang)]
+    # Iteracja przez pliki w katalogu wyjściowym
+    for subdir, _, files in os.walk(output_dir):
+        for file in files:
+            if file.endswith('_features.txt'):
+                # Odczytaj cechy tekstury z pliku
+                features_path = os.path.join(subdir, file)
+                texture_features = {}
+                with open(features_path, 'r') as f:
+                    for line in f:
+                        key, value = line.strip().split(': ')
+                        if key == 'Filename':
+                            texture_features[key] = value
+                        else:
+                            texture_features[key] = [float(x) for x in value.split(', ')]
 
-            features_list.append(features)
+                all_texture_features.append(texture_features)
 
-    features_df = pd.DataFrame(features_list)
-    print(f"Wyekstrahowano cechy dla {len(features_df)} próbek.")
-    return features_df
+    # Utwórz ramkę danych Pandas
+    df = pd.DataFrame(all_texture_features)
 
+    # Usuń plik CSV, jeśli już istnieje
+    csv_file = os.path.join(output_dir, 'texture_dataset.csv')
+    if os.path.exists(csv_file):
+        os.remove(csv_file)
 
-def classify_features(features_df):
-    if features_df.empty or 'category' not in features_df:
-        print("Brak danych do klasyfikacji lub brakująca kategoria 'category'.")
-        return
+    # Zapisz ramkę danych do pliku CSV
+    df.to_csv(csv_file, index=False)
 
-    print("Klasyfikacja cech...")
-    X = features_df.drop(['file', 'category'], axis=1)
-    y = features_df['category']
+def classify_texture_features(input_dir):
+    # Znajdź plik CSV w katalogu wejściowym
+    csv_files = [file for file in os.listdir(input_dir) if file.endswith('.csv')]
+    if not csv_files:
+        print("Nie znaleziono pliku CSV w katalogu wejściowym.")
+        return None
+    elif len(csv_files) > 1:
+        print("Znaleziono więcej niż jeden plik CSV w katalogu wejściowym. Wybierz jeden.")
+        return None
 
-    if len(set(y)) < 2:
-        print("Niewystarczająca liczba klas do klasyfikacji.")
-        return
+    csv_file = os.path.join(input_dir, csv_files[0])
 
-    # Podział danych na zestawy treningowe i testowe
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # Wczytaj zbiór danych z pliku CSV
+    df = pd.read_csv(csv_file)
 
-    # Utworzenie i trening klasyfikatora k-NN
-    knn = KNeighborsClassifier(n_neighbors=3)
+    # Konwertuj kolumnę 'Filename' na unikalne identyfikatory numeryczne
+    label_encoder = LabelEncoder()
+    df['Label'] = label_encoder.fit_transform(df['Filename'])
+
+    # Usuń kolumnę 'Filename' przed przekazaniem danych do klasyfikatora
+    X = df.drop(columns=['Filename', 'Label'])
+
+    # Przekształć listy wartości w pojedyncze wartości liczbowe
+    for column in X.columns:
+        X[column] = X[column].apply(lambda x: np.mean(eval(x)))
+
+    # Kolumna 'Label' będzie używana jako etykiety
+    y = df['Label']
+
+    # Podziel zbiór danych na dane treningowe i testowe
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Inicjalizacja klasyfikatora KNN
+    knn = KNeighborsClassifier(n_neighbors=5)  # Wybierz liczbę sąsiadów
+
+    # Uczenie klasyfikatora na danych treningowych
     knn.fit(X_train, y_train)
+
+    # Testowanie klasyfikatora na danych testowych
     y_pred = knn.predict(X_test)
 
-    # Obliczenie i wyświetlenie dokładności
+    # Obliczenie dokładności klasyfikatora
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Dokładność: {accuracy:.4f}")
 
+    return accuracy
 
-# Ścieżki do folderów źródłowych
-source_folders = [
+# Ścieżki do katalogów wejściowego i wyjściowego oraz rozmiar wyciętych fragmentów
+input_dir = r"C:\Users\USER\PycharmProjects\pythonProject1\wej\tynk"
+output_dir = r"C:\Users\USER\PycharmProjects\pythonProject1\wyj"
+crop_size = (128, 128)
 
-]
+# Definiowanie odległości pikseli i kierunków
+distances = [1, 3, 5]
+angles = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
 
-# Ścieżka do folderu docelowego
-destination = r"D:\studia wojtek\2 stopien\semestr 1\Programowanie w obliczeniach inteligentnych\cropped"
+# Użyj funkcji do wycinania fragmentów tekstur i obliczania cech
+crop_and_save_textures(input_dir, output_dir, crop_size, distances, angles)
 
-# Wykonanie przycinania obrazów ze wszystkich folderów źródłowych
-crop_and_save_images(source_folders, destination)
+# Klasyfikacja cech i uzyskanie dokładności klasyfikatora
+accuracy = classify_texture_features(output_dir)
 
-# Ekstrakcja cech tekstur z przyciętych obrazów i zapisanie ich do pliku CSV
-features_df = extract_texture_features(destination)
-features_df.to_csv('texture_features.csv', index=False)
-
-# Klasyfikacja cech i wydrukowanie dokładności
-classify_features(features_df)
+# Wyświetlenie uzyskanej dokładności klasyfikacji
+if accuracy is not None:
+    print("Dokładność klasyfikatora KNN:", accuracy)
