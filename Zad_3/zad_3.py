@@ -109,9 +109,9 @@ def przytnij_i_zapisz_obrazy(wejście, wyjście, rozmiar_przycięcia=(128, 128))
     print(f"Całkowita liczba przyciętych obrazów: {całkowita_liczba_przycięć}")
 
 wejście= [
-    r"C:\Users\USER\PycharmProjects\POI-repozytorium\Zad_3\wejście\Gres",
-    r"C:\Users\USER\PycharmProjects\POI-repozytorium\Zad_3\wejście\Laminat",
-    r"C:\Users\USER\PycharmProjects\POI-repozytorium\Zad_3\wejście\Tynk"
+    r"C:\Users\USER\PycharmProjects\pythonProject1\wej\Gres",
+    r"C:\Users\USER\PycharmProjects\pythonProject1\wej\Tynk",
+    r"C:\Users\USER\PycharmProjects\pythonProject1\wej\Laminat"
 ]
 wyjście = r"C:\Users\USER\PycharmProjects\POI-repozytorium\Zad_3\wyjście"
 
