@@ -20,11 +20,13 @@ def eks_cechy_tekstury(ścieżka_katalogu, odległości=[1, 3, 5], kąty=[0, np.
         if not nazwa_pliku.endswith('.jpg'):
             continue
 
+
         ścieżka_obrazu = os.path.join(ścieżka_katalogu, nazwa_pliku)
         foto = io.imread(ścieżka_obrazu)
         if foto is None or foto.size == 0:
             print(f"Nie załadowano obrazu: {nazwa_pliku}")
             continue
+
 
         if len(foto.shape) == 3:
             foto_gray = color.rgb2gray(foto)
@@ -33,6 +35,7 @@ def eks_cechy_tekstury(ścieżka_katalogu, odległości=[1, 3, 5], kąty=[0, np.
 
         foto_gray = img_as_ubyte(foto_gray)
         foto_gray //= 4
+
 
         glcm = graycomatrix(foto_gray, odległości, kąty, 64, symmetric=True, normed=True)
         cechy = {'plik': nazwa_pliku, 'kategoria': nazwa_pliku.split('_')[0]}
@@ -70,6 +73,7 @@ def klasyfikacja_cech(df_cech):
     dokładność = accuracy_score(y_testowe, y_pred)
     print(f"Dokładność algorytmu KNN: {dokładność:.4f}")
 
+
 def przytnij_i_zapisz_obrazy(wejście, wyjście, rozmiar_przycięcia=(128, 128)):
     if not os.path.exists(wyjście):
         os.makedirs(wyjście)
@@ -77,8 +81,10 @@ def przytnij_i_zapisz_obrazy(wejście, wyjście, rozmiar_przycięcia=(128, 128))
     print("Rozpoczynanie przycinania obrazów...")
     całkowita_liczba_przycięć = 0
 
+
     for ścieżka_katalogu in wejście:
         pliki = [f for f in os.listdir(ścieżka_katalogu) if f.endswith('.jpg')]
+
 
         for nazwa_pliku in pliki:
             ścieżka_obrazu = os.path.join(ścieżka_katalogu, nazwa_pliku)
@@ -87,6 +93,7 @@ def przytnij_i_zapisz_obrazy(wejście, wyjście, rozmiar_przycięcia=(128, 128))
                 print(f"Nie udało się załadować obrazu {nazwa_pliku} z {ścieżka_katalogu}")
                 continue
             h, w, _ = obraz.shape
+
 
             id_przycięcia = 0
             for y in range(0, h - rozmiar_przycięcia[1] + 1, rozmiar_przycięcia[1]):
@@ -98,6 +105,7 @@ def przytnij_i_zapisz_obrazy(wejście, wyjście, rozmiar_przycięcia=(128, 128))
                     id_przycięcia += 1
                     całkowita_liczba_przycięć += 1
             print(f"Przycięto {id_przycięcia} obrazów z {ścieżka_obrazu}")
+
     print(f"Całkowita liczba przyciętych obrazów: {całkowita_liczba_przycięć}")
 
 wejście= [
@@ -108,6 +116,9 @@ wejście= [
 wyjście = r"C:\Users\USER\PycharmProjects\POI-repozytorium\Zad_3\wyjście"
 
 przytnij_i_zapisz_obrazy(wejście, wyjście)
+
 df_cech = eks_cechy_tekstury(wyjście)
+
 df_cech.to_csv('zbiór_wektorów_danych.csv', index=False)
+
 klasyfikacja_cech(df_cech)
