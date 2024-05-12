@@ -185,8 +185,8 @@ def classify_texture_features(input_dir):
     return accuracy
 
 # Ścieżki do katalogów wejściowego i wyjściowego oraz rozmiar wyciętych fragmentów
-input_dir = r"C:\Users\USER\PycharmProjects\pythonProject1\wej\tynk"
-output_dir = r"C:\Users\USER\PycharmProjects\pythonProject1\wyj"
+input_dir = r"C:\Users\USER\PycharmProjects\POI-repozytorium\Tekstury\tynk"
+output_dir = r"C:\Users\USER\PycharmProjects\POI-repozytorium\Plik_wyjściowy"
 crop_size = (128, 128)
 
 # Definiowanie odległości pikseli i kierunków
